@@ -3,22 +3,28 @@ package main
 import (
 	"log"
 	"net/http"
+	"path/filepath"
+	"sync"
+	"text/template"
 )
 
+type templateHandler struct {
+	once sync.Once
+	filename string
+	templ *template.Template
+}
+
+func (t *templateHandler) ServeHTTP (w http.ResponseWriter, r *http.Request) {
+	t.once.Do(
+		func() {
+			t.templ = template.Must(template.ParseFiles(filepath.Join("templates", t.filename)))
+		},
+	)
+	t.templ.Execute(w, nil)
+}
+
 func main()  {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`byte
-			<html>
-				<head>
-					<meta charset="utf-8" />
-					<title>Simple messenger</title>
-				</head>
-				<body>
-					<h1>Simple messenger</h1>
-				</body>
-			</html>
-		`))
-	})
+	http.Handle("/", &templateHandler{filename: "base.html"})
 
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal("ListenAndServe:", err)
